@@ -1,5 +1,6 @@
+from urllib import response
 from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required, unset_jwt_cookies
 from app.models.user import User
 from app.schemas.user_schema import UserSchema
 from app.services.auth_service import register_user, get_user_by_email
@@ -167,8 +168,35 @@ def api_list_users():
     result = user_schema.dump(users, many=True)
     return jsonify(result), 200
 
+@auth_bp.route('/api/logout', methods=['POST'])
+@jwt_required()  # <-- Añadir este decorador
+def api_logout():
+    """
+    Cerrar sesión (API)
+    ---
+    tags:
+      - Auth
+    responses:
+      200:
+        description: Logout exitoso
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              description: Mensaje de confirmación
+    """
+    # En este enfoque, el logout se maneja principalmente del lado del cliente.
+    # El servidor puede hacer algo si usas token revocation/blacklisting.
+    # Por ahora, simplemente confirmamos el logout.
+    jti = get_jwt()['jti']  # jti es el ID único del token
+    # Aquí podrías añadir el `jti` a una lista negra si usas token revocation.
+    # revoke_token(jti)  # <-- función que tendrías que implementar
+
+    return jsonify({"msg": "Successfully logged out"}), 200
+
 # ========================
-# RUTAS PARA VISTAS HTML
+# RUTAS PARA VISTAS HTML (sin lógica de autenticación)
 # ========================
 
 @auth_bp.route('/login', methods=['GET'])
@@ -178,41 +206,24 @@ def login_view():
     """
     return render_template('login.html')
 
-@auth_bp.route('/login', methods=['POST'])
-def login_handler():
-    """
-    Manejador del formulario de login
-    """
-    email = request.form.get('email')
-    password = request.form.get('password')
-
-    if not email or not password:
-        return render_template('login.html', error="Email y contraseña son requeridos")
-
-    user = get_user_by_email(email)
-    if user and user.check_password(password):
-        # Guardar el ID del usuario en la sesión
-        session['user_id'] = user.id
-        session['username'] = user.username
-        session['role'] = user.role
-        return redirect(url_for('auth.home'))
-
-    return render_template('login.html', error="Credenciales inválidas")
-
-@auth_bp.route('/home')
+@auth_bp.route('/home', methods=['GET'])
 def home():
     """
-    Vista de inicio (requiere estar logueado)
+    Vista de inicio
     """
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login_view'))
+    # Aquí puedes verificar si hay un token JWT en localStorage del navegador
+    # pero Flask no puede acceder directamente a localStorage.
+    # Este endpoint puede ser accedido solo si el frontend envía el token.
+    # Más adelante veremos cómo protegerlo si es necesario.
+    return render_template('home.html')
 
-    return render_template('home.html', current_user={'username': session['username']})
-
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     """
-    Cerrar sesión
+    Cerrar sesión (opcional, para limpiar token del lado del cliente)
     """
-    session.clear()
-    return redirect(url_for('auth.login_view'))
+    # En este enfoque, Flask no maneja la sesión.
+    # El logout se haría en el frontend (limpiando localStorage).
+    # Esta ruta puede ser solo para limpiar cookies si las usas.
+    unset_jwt_cookies(response)
+    return jsonify({"msg": "Logged out"}), 200

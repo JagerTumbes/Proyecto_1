@@ -4,8 +4,43 @@
 
 {% block content %}
 <div class="container">
-    <h2>Bienvenido, {{ current_user.username }}!</h2>
-    <p>Esta es tu página de inicio.</p>
-    <a href="{{ url_for('auth.logout') }}">Cerrar Sesión</a>
+    <h2>Bienvenido a tu página de inicio</h2>
+    <p>Aquí puedes ver tus tareas o lo que necesites.</p>
+    <button id="logoutBtn">Cerrar Sesión</button>
 </div>
+
+<script>
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+        // Si no hay token, redirigir al login
+        window.location.href = '/auth/login';
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/api/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            // Limpiar el token del lado del cliente
+            localStorage.removeItem('access_token');
+            // Redirigir al login
+            window.location.href = '/auth/login';
+        } else {
+            console.error('Error al cerrar sesión:', await response.text());
+            alert('Hubo un problema al cerrar sesión.');
+        }
+    } catch (error) {
+        console.error('Error de conexión:', error);
+        alert('Error de conexión al intentar cerrar sesión.');
+    }
+});
+</script>
 {% endblock %}

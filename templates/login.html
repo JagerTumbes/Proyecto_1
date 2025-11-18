@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container">
     <h2>Iniciar Sesión</h2>
-    <form method="POST" action="{{ url_for('auth.login_view') }}">
+    <form id="loginForm">
         <label for="email">Email:</label>
         <input type="email" id="email" name="email" required>
 
@@ -14,5 +14,41 @@
 
         <button type="submit">Iniciar Sesión</button>
     </form>
+    <div id="error" style="color: red;"></div>
 </div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); // Evita que el formulario se envíe de forma tradicional
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    try {
+        const response = await fetch('/auth/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Guardar el token JWT en localStorage (o sessionStorage)
+            localStorage.setItem('access_token', data.access_token);
+
+            // Redirigir a la página de inicio
+            window.location.href = '/auth/home';
+        } else {
+            // Mostrar mensaje de error
+            document.getElementById('error').innerText = data.msg || 'Error desconocido';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('error').innerText = 'Error de conexión';
+    }
+});
+</script>
 {% endblock %}
