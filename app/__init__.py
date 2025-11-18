@@ -16,8 +16,11 @@ migrate = Migrate()
 from app.models import user, task
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='../templates')
     app.config.from_object(Config)
+
+    # Asegúrate de que la app tenga una clave secreta para las sesiones
+    app.secret_key = app.config['SECRET_KEY']
 
     # Inicializar extensiones
     db.init_app(app)

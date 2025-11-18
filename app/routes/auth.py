@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for
 from flask_jwt_extended import create_access_token
 from app.models.user import User
 from app.schemas.user_schema import UserSchema
@@ -10,10 +10,14 @@ auth_bp = Blueprint('auth', __name__)
 
 user_schema = UserSchema()
 
-@auth_bp.route('/register', methods=['POST'])
-def register():
+# ========================
+# RUTAS PARA LA API (JSON)
+# ========================
+
+@auth_bp.route('/api/register', methods=['POST'])
+def api_register():
     """
-    Registro de un nuevo usuario
+    Registro de un nuevo usuario (API)
     ---
     tags:
       - Auth
@@ -76,10 +80,10 @@ def register():
     except Exception as e:
         return jsonify({"msg": "Internal server error", "error": str(e)}), 500
 
-@auth_bp.route('/login', methods=['POST'])
-def login():
+@auth_bp.route('/api/login', methods=['POST'])
+def api_login():
     """
-    Iniciar sesión
+    Iniciar sesión (API)
     ---
     tags:
       - Auth
@@ -128,10 +132,10 @@ def login():
         return jsonify({"msg": "Invalid credentials"}), 401
     except Exception as e:
         return jsonify({"msg": "Internal server error", "error": str(e)}), 500
-    
-@auth_bp.route('/users', methods=['GET'])
+
+@auth_bp.route('/api/users', methods=['GET'])
 @role_required('admin')
-def list_users():
+def api_list_users():
     """
     Listar todos los usuarios (solo para administradores)
     ---
@@ -162,3 +166,53 @@ def list_users():
     users = User.query.all()
     result = user_schema.dump(users, many=True)
     return jsonify(result), 200
+
+# ========================
+# RUTAS PARA VISTAS HTML
+# ========================
+
+@auth_bp.route('/login', methods=['GET'])
+def login_view():
+    """
+    Vista HTML para iniciar sesión
+    """
+    return render_template('login.html')
+
+@auth_bp.route('/login', methods=['POST'])
+def login_handler():
+    """
+    Manejador del formulario de login
+    """
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    if not email or not password:
+        return render_template('login.html', error="Email y contraseña son requeridos")
+
+    user = get_user_by_email(email)
+    if user and user.check_password(password):
+        # Guardar el ID del usuario en la sesión
+        session['user_id'] = user.id
+        session['username'] = user.username
+        session['role'] = user.role
+        return redirect(url_for('auth.home'))
+
+    return render_template('login.html', error="Credenciales inválidas")
+
+@auth_bp.route('/home')
+def home():
+    """
+    Vista de inicio (requiere estar logueado)
+    """
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login_view'))
+
+    return render_template('home.html', current_user={'username': session['username']})
+
+@auth_bp.route('/logout')
+def logout():
+    """
+    Cerrar sesión
+    """
+    session.clear()
+    return redirect(url_for('auth.login_view'))
