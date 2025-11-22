@@ -39,8 +39,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             // Guardar el token JWT en localStorage (o sessionStorage)
             localStorage.setItem('access_token', data.access_token);
 
-            // Redirigir a la página de inicio
-            window.location.href = '/auth/home';
+            // ✅ LEER LA URL DE REDIRECCIÓN DESDE LA RESPUESTA DE LA API
+            const redirectUrl = data.redirect_url;
+
+            // ✅ REDIRIGIR A LA URL ESPECIFICADA POR LA API
+            window.location.href = redirectUrl;
         } else {
             // Mostrar mensaje de error
             document.getElementById('error').innerText = data.msg || 'Error desconocido';

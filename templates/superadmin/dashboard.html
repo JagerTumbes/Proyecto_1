@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Superadmin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>¡Bienvenido Superadmin!</h2>
+    <p>Esta es tu área exclusiva. Desde aquí puedes gestionar todo el sistema.</p>
+
+    <h3>Acciones Disponibles:</h3>
+    <ul>
+        <li><a href="/auth/register/director">Registrar Nuevo Director</a></li>
+        <li><a href="/auth/register/administrativo">Registrar Nuevo Administrativo</a></li>
+        <li><a href="/auth/register/profesor">Registrar Nuevo Profesor</a></li>
+        <li><a href="/auth/register/alumno">Registrar Nuevo Alumno</a></li>
+        <li><a href="/auth/register/superadmin">Registrar Nuevo Superadmin</a></li>
+    </ul>
+
+    <button id="logoutBtn">Cerrar Sesión</button>
+
+    <script>
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        // Limpiar el token JWT del lado del cliente
+        localStorage.removeItem('access_token');
+
+        // Enviar una solicitud POST a la ruta de logout para limpiar la sesión de Flask (si aplica)
+        try {
+            const response = await fetch('/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // No es necesario enviar el token JWT aquí para el logout,
+                    // ya que lo estamos borrando del cliente.
+                    // 'Authorization': `Bearer ${token}` // <-- No es necesario
+                },
+                body: JSON.stringify({}) // El cuerpo puede estar vacío
+            });
+
+            if (response.ok) {
+                // Redirigir al login
+                window.location.href = '/auth/login';
+            } else {
+                console.error('Error al cerrar sesión en el servidor:', await response.text());
+                // Aún así, redirigir al login porque el token local se borró
+                window.location.href = '/auth/login';
+            }
+        } catch (error) {
+            console.error('Error de conexión al cerrar sesión:', error);
+            // Aún así, redirigir al login porque el token local se borró
+            window.location.href = '/auth/login';
+        }
+    });
+    </script>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Verificar la sesión del usuario
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+        // Si no hay token, redirigir al login
+        window.location.href = '/auth/login';
+        return;
+    }
+
+    // Llamar a la API para verificar la sesión
+    fetch('/auth/api/verify-session', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Si no está autorizado, redirigir al login
+            throw new Error('Unauthorized');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Verificar que el rol sea 'superadmin'
+        if (data.role !== 'superadmin') {
+            // Si no es superadmin, redirigir al login
+            window.location.href = '/auth/login';
+        }
+        // Si es superadmin, mostrar la página
+        console.log('Sesión verificada, rol:', data.role);
+    })
+    .catch(error => {
+        console.error('Error al verificar la sesión:', error);
+        // Redirigir a login si hay error
+        window.location.href = '/auth/login';
+    });
+});
+</script>
+{% endblock %}

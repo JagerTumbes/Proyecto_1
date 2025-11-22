@@ -1,46 +1,86 @@
-{% extends "base.html" %}
-
-{% block title %}Inicio{% endblock %}
-
-{% block content %}
-<div class="container">
-    <h2>Bienvenido a tu página de inicio</h2>
-    <p>Aquí puedes ver tus tareas o lo que necesites.</p>
-    <button id="logoutBtn">Cerrar Sesión</button>
-</div>
-
+{% block scripts %}
 <script>
-document.getElementById('logoutBtn').addEventListener('click', async () => {
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DEBUG: DOMContentLoaded ejecutado en home.html'); // Log para depurar
+
     const token = localStorage.getItem('access_token');
+    console.log('DEBUG: Token obtenido de localStorage:', token); // Log para depurar
 
     if (!token) {
-        // Si no hay token, redirigir al login
+        console.log('DEBUG: No hay token en localStorage, redirigiendo a login.'); // Log para depurar
         window.location.href = '/auth/login';
         return;
     }
 
-    try {
-        const response = await fetch('/auth/api/logout', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+    console.log('DEBUG: Token encontrado, intentando verificar sesión.'); // Log para depurar
 
-        if (response.ok) {
-            // Limpiar el token del lado del cliente
-            localStorage.removeItem('access_token');
-            // Redirigir al login
-            window.location.href = '/auth/login';
-        } else {
-            console.error('Error al cerrar sesión:', await response.text());
-            alert('Hubo un problema al cerrar sesión.');
+    // Llamar a la API para verificar la sesión y obtener el rol
+    fetch('/auth/api/verify-session', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Enviar token
         }
-    } catch (error) {
-        console.error('Error de conexión:', error);
-        alert('Error de conexión al intentar cerrar sesión.');
-    }
+    })
+    .then(response => {
+        console.log('DEBUG: Respuesta de la API recibida, status:', response.status); // Log para depurar
+        console.log('DEBUG: Headers de respuesta:', response.headers); // Log para depurar
+
+        if (!response.ok) {
+            console.error('DEBUG: La API respondió con error, status:', response.status); // Log para depurar
+            // Si no está autorizado, redirigir al login
+            throw new Error('Unauthorized');
+        }
+
+        console.log('DEBUG: La API respondió con éxito, intentando leer JSON...'); // Log para depurar
+        return response.json();
+    })
+    .then(data => {
+        console.log('DEBUG: Datos recibidos de la API:', data); // Log para depurar
+        console.log('DEBUG: Tipo de data:', typeof data); // Log para depurar
+        console.log('DEBUG: Propiedades de data:', Object.keys(data)); // Log para depurar
+
+        if (!data || typeof data !== 'object') {
+            console.error('DEBUG: La respuesta de la API no es un objeto válido:', data); // Log para depurar
+            throw new Error('Invalid response format');
+        }
+
+        const userRole = data.role;
+        console.log('DEBUG: Rol del usuario extraído:', userRole); // Log para depurar
+
+        if (!userRole) {
+            console.error('DEBUG: La respuesta de la API no contiene un rol válido:', data); // Log para depurar
+            window.location.href = '/auth/login';
+            return;
+        }
+
+        // Mapear roles a URLs de dashboard
+        const roleToDashboard = {
+            'superadmin': '/auth/dashboard/superadmin',
+            'director': '/auth/dashboard/director', // Asegúrate de que esta ruta exista
+            'administrativo': '/auth/dashboard/administrativo', // Asegúrate de que esta ruta exista
+            'profesor': '/auth/dashboard/profesor', // Asegúrate de que esta ruta exista
+            'alumno': '/auth/dashboard/alumno' // Asegúrate de que esta ruta exista
+        };
+
+        // Obtener la URL según el rol, o redirigir a login si no se encuentra
+        const redirectUrl = roleToDashboard[userRole];
+
+        if (redirectUrl) {
+            console.log('DEBUG: Redirigiendo a:', redirectUrl); // Log para depurar
+            window.location.href = redirectUrl;
+        } else {
+            console.log('DEBUG: Rol no reconocido en el mapeo, redirigiendo a login. Rol recibido:', userRole); // Log para depurar
+            window.location.href = '/auth/login';
+        }
+    })
+    .catch(error => {
+        console.error('DEBUG: Error AL COMPLETO en la promesa fetch:', error); // Log para depurar
+        console.error('DEBUG: Mensaje del error:', error.message); // Log para depurar
+        console.error('DEBUG: Stack del error:', error.stack); // Log para depurar
+        // Redirigir a login si hay error
+        window.location.href = '/auth/login';
+    });
 });
 </script>
 {% endblock %}

@@ -6,6 +6,7 @@ from flasgger import Swagger
 from flask_migrate import Migrate
 from app.config import Config
 
+
 db = SQLAlchemy()
 jwt = JWTManager()
 ma = Marshmallow()
